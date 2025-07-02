@@ -2,35 +2,6 @@
 require_once "config.php";
 require_once "User.php";
 $user = new User($conn);
-
-// Handle AJAX Create
-if (isset($_POST['create'])) {
-    $newPhoto = $user->create($_POST, $_FILES['profile_photo']);
-    echo json_encode(['status' => $newPhoto ? 'success' : 'error', 'newPhoto' => $newPhoto]);
-    exit;
-}
-
-// Handle AJAX Update
-if (isset($_POST['update'])) {
-    $newPhoto = $user->update($_POST['id'], $_POST, $_FILES['profile_photo']);
-    echo json_encode(['status' => $newPhoto !== false ? 'success' : 'error', 'newPhoto' => $newPhoto]);
-    exit;
-}
-
-// Handle AJAX Delete
-if (isset($_POST['delete'])) {
-    $result = $user->delete($_POST['id']);
-    echo json_encode(['status' => $result ? 'success' : 'error']);
-    exit;
-}
-
-// Get user data for editing
-if (isset($_GET['get_user_id'])) {
-    header('Content-Type: application/json');
-    echo json_encode($user->get($_GET['get_user_id']));
-    exit;
-}
-
 $users = $user->readAll();
 ?>
 <!DOCTYPE html>
@@ -42,6 +13,12 @@ $users = $user->readAll();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
     <style>
         #tooltip {
@@ -144,7 +121,7 @@ $users = $user->readAll();
     <!-- ADD Modal -->
     <div class="modal fade" id="addModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
-            <form id="addForm" class="modal-content" enctype="multipart/form-data">
+            <form id="addForm" class="modal-content" enctype="multipart/form-data" novalidate>
                 <div class="modal-header bg-primary text-white">
                     <h5>Add User</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -175,7 +152,7 @@ $users = $user->readAll();
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" type="submit">Add</button>
+                    <button type="submit" class="btn btn-primary">Add</button>
                 </div>
             </form>
         </div>
@@ -184,7 +161,7 @@ $users = $user->readAll();
     <!-- Edit Modal -->
     <div class="modal fade" id="editModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <form id="editForm" class="modal-content" enctype="multipart/form-data">
+            <form id="editForm" class="modal-content" enctype="multipart/form-data" novalidate>
                 <div class="modal-header bg-warning text-dark">
                     <h5 class="modal-title">Edit User</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -283,11 +260,6 @@ $users = $user->readAll();
             </div>
         </div>
     </div>
-
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
         function previewEditPhoto(event) {
             document.getElementById('editPreview').src = URL.createObjectURL(event.target.files[0]);
@@ -300,41 +272,97 @@ $users = $user->readAll();
                     .addClass(type == 'success' ? 'tooltip-success' : 'tooltip-error')
                     .text(msg).fadeIn(200).delay(2000).fadeOut(400);
             }
-
-            $('#addForm').submit(function (e) {
-                e.preventDefault();
-                let form = new FormData(this);
-                form.append('create', true);
-                $.ajax({
-                    method: 'POST',
-                    data: form,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'json',
-                    success(res) {
-                        if (res.status == 'success') {
-                            $('#addModal').modal('hide');
-                            table.row.add([
-                                '', `<img src="uploads/${res.newPhoto}" width="50" height="50" class="rounded-circle">`,
-                                form.get('name'),
-                                form.get('email'),
-                                form.get('phone'),
-                                form.get('gender'),
-                                parseFloat(form.get('salary')).toFixed(2),
-                                    `<button class="btn btn-sm btn-warning editBtn">Edit</button>
-                                    <button class="btn btn-sm btn-danger deleteBtn">Delete</button>`
-                            ]).draw(false)
-                                .node().setAttribute('data-id', res.newPhoto);
-                            showTooltip('User added!');
-                        } else showTooltip('Failed to add', 'error');
+            // Add Form Validation
+            $('#addForm').validate({
+                rules: {
+                    name: { required: true },
+                    phone: { required: true, minlength: 10, maxlength: 15 },
+                    email: { required: true, email: true },
+                    password: { required: true, minlength: 6 },
+                    age: { required: true, number: true, min: 1 },
+                    salary: { required: true, number: true, min: 0 },
+                    address: { required: true },
+                    gender: { required: true },
+                    profile_photo: { required: true, extension: "jpg|jpeg|png|gif" }
+                },
+                messages: {
+                    name: "Please enter name",
+                    phone: {
+                        required: "Please enter phone number",
+                        minlength: "Minimum 10 digits",
+                        maxlength: "Maximum 15 digits"
+                    },
+                    email: {
+                        required: "Email is required",
+                        email: "Enter valid email"
+                    },
+                    password: {
+                        required: "Password is required",
+                        minlength: "At least 6 characters"
+                    },
+                    age: {
+                        required: "Please enter age",
+                        number: "Enter numeric value",
+                        min: "Age must be at least 1"
+                    },
+                    salary: {
+                        required: "Please enter salary",
+                        number: "Enter numeric value",
+                        min: "Salary must be non-negative"
+                    },
+                    address: "Please enter address",
+                    gender: "Please select gender",
+                    profile_photo: {
+                        required: "Please upload a photo",
+                        extension: "Only image files allowed"
                     }
-                });
+                },
+                errorClass: "text-danger small",
+                submitHandler: function (form) {
+                    let formData = new FormData(form);
+                    formData.append('create', true);
+                    $.ajax({
+                        url: 'api.php',
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success(res) {
+                            if (res.status === 'success') {
+                                $('#addModal').modal('hide');
+                                table.row.add([
+                                    '',
+                                    `<img src="uploads/${res.newPhoto}" width="50" height="50" class="rounded-circle">`,
+                                    formData.get('name'),
+                                    formData.get('email'),
+                                    formData.get('phone'),
+                                    formData.get('gender'),
+                                    parseFloat(formData.get('salary')).toFixed(2),
+                                    `<button class="btn btn-sm btn-warning editBtn">Edit</button>
+                         <button class="btn btn-sm btn-danger deleteBtn">Delete</button>`
+                                ]).draw(false).node().setAttribute('data-id', res.newPhoto);
+                                showTooltip('User added!');
+                                form.reset();
+                            } else if (res.errors) {
+                                if (res.errors.email) {
+                                    $('[name="email"]').after(`<label class="text-danger small">${res.errors.email}</label>`);
+                                }
+                                if (res.errors.phone) {
+                                    $('[name="phone"]').after(`<label class="text-danger small">${res.errors.phone}</label>`);
+                                }
+                            } else {
+                                showTooltip('Failed to add', 'error');
+                            }
+                        }
+                    });
+                }
             });
 
             $('#userTable tbody').on('click', '.editBtn', function () {
                 const row = $(this).closest('tr');
                 const id = row.data('id');
-                $.get('', { get_user_id: id }, function (u) {
+                $.get('api.php', { get_user_id: id }, function (u) { // updated
                     $('#edit-id').val(u.id);
                     $('#existing_photo').val(u.profile_photo);
                     $('#edit-name').val(u.name);
@@ -348,33 +376,92 @@ $users = $user->readAll();
                     $('#editModal').modal('show');
                 }, 'json');
             });
-
-            $('#editForm').submit(function (e) {
-                e.preventDefault();
-                let form = new FormData(this);
-                form.append('update', true);
-                $.ajax({
-                    method: 'POST', data: form, contentType: false, processData: false, dataType: 'json',
-                    success(res) {
-                        if (res.status == 'success') {
-                            $('#editModal').modal('hide');
-                            const row = $(`#userTable tr[data-id="${form.get('id')}"]`);
-                            let photo = res.newPhoto || form.get('existing_photo');
-                            table.row(row).data([
-                                form.get('id'),
-                                `<img src="uploads/${photo}" width="50" height="50" class="rounded-circle">`,
-                                form.get('name'),
-                                form.get('email'),
-                                form.get('phone'),
-                                form.get('gender'),
-                                parseFloat(form.get('salary')).toFixed(2),
-                                row.find('td').eq(7).html()
-                            ]).draw(false);
-                            row.attr('data-id', form.get('id'));
-                            showTooltip('User updated!');
-                        } else showTooltip('Failed to update', 'error');
+            // Edit Form Validation
+            $('#editForm').validate({
+                rules: {
+                    name: { required: true },
+                    phone: { required: true, minlength: 10, maxlength: 15 },
+                    email: { required: true, email: true },
+                    age: { required: true, number: true, min: 1 },
+                    salary: { required: true, number: true, min: 0 },
+                    address: { required: true },
+                    gender: { required: true },
+                    profile_photo: {
+                        extension: "jpg|jpeg|png|gif"
                     }
-                });
+                },
+                messages: {
+                    name: "Please enter name",
+                    phone: {
+                        required: "Please enter phone number",
+                        minlength: "Minimum 10 digits",
+                        maxlength: "Maximum 15 digits"
+                    },
+                    email: {
+                        required: "Email is required",
+                        email: "Enter valid email"
+                    },
+                    age: {
+                        required: "Please enter age",
+                        number: "Enter numeric value",
+                        min: "Age must be at least 1"
+                    },
+                    salary: {
+                        required: "Please enter salary",
+                        number: "Enter numeric value",
+                        min: "Salary must be non-negative"
+                    },
+                    address: "Please enter address",
+                    gender: "Please select gender",
+                    profile_photo: {
+                        extension: "Only image files allowed"
+                    }
+                },
+                errorClass: "text-danger small",
+                submitHandler: function (form) {
+                    let formData = new FormData(form);
+                    formData.append('update', true);
+
+                    // Clear old inline error messages
+                    $('#editForm label.text-danger.small').remove();
+
+                    $.ajax({
+                        url: 'api.php',
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success(res) {
+                            if (res.status === 'success') {
+                                $('#editModal').modal('hide');
+
+                                const row = $(`#userTable tr[data-id="${formData.get('id')}"]`);
+                                let photo = res.newPhoto || formData.get('existing_photo');
+
+                                table.row(row).data([
+                                    formData.get('id'),
+                                    `<img src="uploads/${photo}" width="50" height="50" class="rounded-circle">`,
+                                    formData.get('name'),
+                                    formData.get('email'),
+                                    formData.get('phone'),
+                                    formData.get('gender'),
+                                    parseFloat(formData.get('salary')).toFixed(2),
+                                    row.find('td').eq(7).html()
+                                ]).draw(false);
+
+                                showTooltip('User updated!');
+                            } else if (res.status === 'error' && res.field && res.message) {
+                                // Show validation message below the specific field
+                                $(`#editForm [name="${res.field}"]`).after(
+                                    `<label class="text-danger small">${res.message}</label>`
+                                );
+                            } else {
+                                showTooltip('Failed to update', 'error');
+                            }
+                        }
+                    });
+                }
             });
 
             $('#userTable tbody').on('click', '.deleteBtn', function () {
@@ -383,7 +470,7 @@ $users = $user->readAll();
             });
 
             $('#confirmDeleteBtn').click(function () {
-                $.post('', { delete: true, id: deleteId }, function (res) {
+                $.post('api.php', { delete: true, id: deleteId }, function (res) { // updated
                     if (res.status == 'success') {
                         let row = $(`#userTable tr[data-id="${deleteId}"]`);
                         table.row(row).remove().draw(false);

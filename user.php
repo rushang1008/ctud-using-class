@@ -102,5 +102,35 @@ class User
 
         return $fileName;
     }
+    public function emailExists($email, $excludeId = null)
+    {
+        $sql = "SELECT id FROM users WHERE email = ?";
+        if ($excludeId)
+            $sql .= " AND id != ?";
+        $stmt = $this->conn->prepare($sql);
+        if ($excludeId) {
+            $stmt->bind_param("si", $email, $excludeId);
+        } else {
+            $stmt->bind_param("s", $email);
+        }
+        $stmt->execute();
+        return $stmt->get_result()->num_rows > 0;
+    }
+
+    public function phoneExists($phone, $excludeId = null)
+    {
+        $sql = "SELECT id FROM users WHERE phone = ?";
+        if ($excludeId)
+            $sql .= " AND id != ?";
+        $stmt = $this->conn->prepare($sql);
+        if ($excludeId) {
+            $stmt->bind_param("si", $phone, $excludeId);
+        } else {
+            $stmt->bind_param("s", $phone);
+        }
+        $stmt->execute();
+        return $stmt->get_result()->num_rows > 0;
+    }
+
 }
 ?>
