@@ -1,0 +1,81 @@
+#tooltip {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 10px 20px;
+    border-radius: 8px;
+    display: none;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip-success {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.tooltip-error {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.photo-wrapper {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.photo-wrapper:hover .edit-icon {
+    opacity: 1;
+}
+
+.edit-icon {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #000000aa;
+    color: #fff;
+    border-radius: 50%;
+    padding: 5px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.photo-wrapper img {
+    object-fit: cover;
+    border: 2px solid #ddd;
+}
+
+.photo-wrapper input[type="file"] {
+    display: none;
+}
+.paginate_button .page-item {
+    color:black !important;
+}
+/* Regular buttons */
+div.dataTables_wrapper div.dataTables_paginate ul.pagination .page-item .page-link {
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Active page button */
+div.dataTables_wrapper div.dataTables_paginate ul.pagination .page-item.active .page-link {
+    background-color: black !important;
+    color: white !important;
+    border-color: black !important;
+}
+
+/* Hover effect */
+div.dataTables_wrapper div.dataTables_paginate ul.pagination .page-item .page-link:hover {
+    background-color: #f2f2f2 !important;
+    color: black !important;
+}
+/* Override Bootstrap focus outline on DataTables pagination */
+.dataTables_wrapper .dataTables_paginate .paginate_button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 0.25rem rgba(0, 0, 0, 0.25) !important; /* Black shadow */
+    border-color: black !important;
+}

@@ -5,7 +5,33 @@ require_once "User.php";
 header('Content-Type: application/json');
 
 $user = new User($conn);
+session_start();
+if (isset($_POST['logout'])) {
+    session_destroy();
+    echo json_encode(['status' => 'logged_out']);
+    exit;
+}
 
+if (isset($_POST['login'])) {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+
+    $loggedInUser = $user->getByEmail($email);
+
+    if ($loggedInUser && password_verify($password, $loggedInUser['password'])) {
+        $_SESSION['logged_in'] = true;
+        $_SESSION['name'] = $loggedInUser['name']; // save name
+        echo json_encode(['status' => 'success', 'name' => $loggedInUser['name']]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid email or password']);
+    }
+    exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['read'])) {
+    $users = $user->readAll();
+    echo json_encode(['data' => $users]);
+    exit;
+}
 // Handle AJAX Create
 if (isset($_POST['create'])) {
     if ($user->emailExists($_POST['email'])) {
@@ -17,8 +43,16 @@ if (isset($_POST['create'])) {
         exit;
     }
 
-    $newPhoto = $user->create($_POST, $_FILES['profile_photo']);
-    echo json_encode(['status' => $newPhoto ? 'success' : 'error', 'newPhoto' => $newPhoto]);
+    $newId = $user->create($_POST, $_FILES['profile_photo']);
+    if ($newId) {
+        $createdUser = $user->get($newId);
+        echo json_encode([
+            'status' => 'success',
+            'user' => $createdUser
+        ]);
+    } else {
+        echo json_encode(['status' => 'error']);
+    }
     exit;
 }
 
@@ -36,7 +70,16 @@ if (isset($_POST['update'])) {
     }
 
     $newPhoto = $user->update($id, $_POST, $_FILES['profile_photo'] ?? null);
-    echo json_encode(['status' => $newPhoto ? 'success' : 'error', 'newPhoto' => $newPhoto]);
+    if ($newPhoto !== false) {
+        $updatedUser = $user->get($id);
+        echo json_encode([
+            'status' => 'success',
+            'user' => $updatedUser,
+            'newPhoto' => $newPhoto
+        ]);
+    } else {
+        echo json_encode(['status' => 'error']);
+    }
     exit;
 }
 
