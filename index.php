@@ -14,7 +14,7 @@ $users = $user->readAll();
     <title>AJAX DataTable CRUD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet"> -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 
@@ -47,7 +47,7 @@ $users = $user->readAll();
     <!-- Main Content -->
     <div id="mainContent" style="display: none;">
         <!-- Navbar -->
-        <nav class="container-fluid navbar navbar-expand-lg navbar-dark bg-dark px-4">
+        <nav class=" navbar navbar-expand-lg navbar-dark bg-dark px-4">
             <a class="navbar-brand fw-bold" href="#">RK</a>
             <div class="ms-auto dropdown">
                 <button class="btn btn-dark dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown"
@@ -61,7 +61,7 @@ $users = $user->readAll();
         </nav>
 
         <!-- Page Content -->
-        <div class="container-fluid p-5">
+        <div class="web container-fluid  p-5">
             <div class="d-flex justify-content-between mb-3">
                 <h2>User Management <br><span>
                         <h3 class="text-white bg-dark d-inline-block px-2 py-1 mt-1">By MR_KAVA</h3>
@@ -75,10 +75,29 @@ $users = $user->readAll();
                     </button>
                     <a href="export-excel.php" class="btn btn-outline-success me-2">
                         <i class="bi bi-upload"></i> Export Excel
-                    </a>
+                    </a>   
+                        <a href="export-pdf.php" target="_blank" class="btn btn-outline-danger me-2">
+                            <i class="bi bi-file-earmark-pdf-fill"></i> Export as PDF
+                        </a>
+
                     <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#addModal">
                         + Add User
                     </button>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="row mb-3 d-flex justify-content-between ">
+                <div class="col-md-1">
+                    <select id="recordsPerPage" class="form-select">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search users...">
                 </div>
             </div>
 
@@ -87,41 +106,27 @@ $users = $user->readAll();
                 <table id="userTable" class="table table-bordered table-striped">
                     <thead class="table-dark">
                         <tr>
-                            <th>ID</th>
-                            <th>Image</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Gender</th>
-                            <th>Age</th>
-                            <th>Address</th>
-                            <th>Created At</th>
-                            <th>Salary</th>
-                            <th>Action</th>
+                            <th data-sort="id">ID <i class="bi bi-caret-down-fill"></i></th>
+                            <th>Photo</th>
+                            <th data-sort="name">Name <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="email">Email <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="phone">Phone <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="gender">Gender <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="age">Age <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="address">Address <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="created_at">Created <i class="bi bi-caret-down-fill"></i></th>
+                            <th data-sort="salary">Salary <i class="bi bi-caret-down-fill"></i></th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach ($users as $u): ?>
-                        <tr data-id="<?= $u['id'] ?>">
-                            <td><?= htmlspecialchars($u['id']) ?></td>
-                            <td><img src="uploads/<?= htmlspecialchars($u['profile_photo']) ?>" width="50" height="50"
-                                    class="rounded-circle"></td>
-                            <td><?= htmlspecialchars($u['name']) ?></td>
-                            <td><?= htmlspecialchars($u['email']) ?></td>
-                            <td><?= htmlspecialchars($u['phone']) ?></td>
-                            <td><?= htmlspecialchars($u['gender']) ?></td>
-                            <td><?= htmlspecialchars($u['age']) ?></td>
-                            <td><?= htmlspecialchars($u['address']) ?></td>
-                            <td><?= htmlspecialchars($u['created_at']) ?></td>
-                            <td><?= number_format($u['salary'], 2) ?></td>
-                            <td>
-                                <button class="btn btn-sm btn-warning editBtn">Edit</button>
-                                <button class="btn btn-sm btn-danger deleteBtn">Delete</button>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+                    <tbody></tbody>
                 </table>
+            </div>
+
+            <!-- Pagination info -->
+            <div class="d-flex justify-content-between align-items-center">
+                <div id="tableInfo" class="text-muted"></div>
+                <div id="paginationControls" class="btn-group"></div>
             </div>
         </div>
 
@@ -186,15 +191,15 @@ $users = $user->readAll();
 
                         <div class="row g-3">
                             <div class="col-md-6 text-center">
-                                <label class="form-label d-block">Profile Photo</label>
-                                <div class="photo-wrapper mx-auto position-relative" style="width: 100px;">
-                                    <img id="editPreview" src="" width="100" height="100" class="rounded-circle">
-                                    <span class="edit-icon position-absolute top-0 end-0 bg-light p-1 rounded-circle">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </span>
-                                    <input type="file" name="profile_photo" id="edit-photo" accept="image/*"
-                                        class="d-none" onchange="previewEditPhoto(event)">
-                                </div>
+                                <label for="edit-photo" class="photo-wrapper" id="edit-photo-wrapper">
+                                    <img id="editPreview" src="" alt="Profile" />
+                                    <div class="edit-icon">
+                                        <i
+                                            class="bi bi-pencil-fill edit-icon d-flex justify-content-center align-items-center"></i>
+
+                                    </div>
+                                </label>
+                                <input type="file" id="edit-photo" name="profile_photo" class="d-none" />
                             </div>
 
                             <div class="col-md-6">
@@ -300,8 +305,8 @@ $users = $user->readAll();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <!-- <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script> -->
     <script src="index.js"></script>
 </body>
 

@@ -8,6 +8,87 @@ class User
         $this->conn = $db;
     }
 
+    public function login($email, $password)
+    {
+        $admin = $this->getByEmail($email);
+        if ($admin && password_verify($password, $admin['password'])) {
+            $_SESSION['logged_in'] = true;
+            $_SESSION['name'] = $admin['name'];
+            return ['status' => 'success', 'name' => $admin['name']];
+        }
+        return ['status' => 'error', 'message' => 'Invalid email or password'];
+    }
+
+    public function logout()
+    {
+        session_destroy();
+        return ['status' => 'logged_out'];
+    }
+
+    public function createUser($data, $file = null)
+    {
+        if ($this->emailExists($data['email'])) {
+            return ['status' => 'error', 'field' => 'email', 'message' => 'Email already exists'];
+        }
+
+        if ($this->phoneExists($data['phone'])) {
+            return ['status' => 'error', 'field' => 'phone', 'message' => 'Phone already exists'];
+        }
+
+        $newId = $this->create($data, $file);
+        if ($newId) {
+            $createdUser = $this->get($newId);
+            return ['status' => 'success', 'user' => $createdUser];
+        }
+
+        return ['status' => 'error', 'message' => 'User creation failed'];
+    }
+
+    public function updateUser($data, $file = null)
+    {
+        $id = $data['id'] ?? null;
+        if (!$id) return ['status' => 'error', 'message' => 'User ID is required'];
+
+        if ($this->emailExists($data['email'], $id)) {
+            return ['status' => 'error', 'field' => 'email', 'message' => 'Email already exists'];
+        }
+
+        if ($this->phoneExists($data['phone'], $id)) {
+            return ['status' => 'error', 'field' => 'phone', 'message' => 'Phone already exists'];
+        }
+
+        $newPhoto = $this->update($id, $data, $file);
+        if ($newPhoto !== false) {
+            $updatedUser = $this->get($id);
+            return ['status' => 'success', 'user' => $updatedUser, 'newPhoto' => $newPhoto];
+        }
+
+        return ['status' => 'error', 'message' => 'User update failed'];
+    }
+
+    public function deleteUser($id)
+    {
+        if ($this->delete($id)) {
+            return ['status' => 'success'];
+        }
+        return ['status' => 'error', 'message' => 'Delete failed'];
+    }
+
+    public function getUserById($id)
+    {
+        if (!$id) {
+            return ['status' => 'error', 'message' => 'ID is required'];
+        }
+
+        $user = $this->get($id);
+        return $user ?: ['status' => 'error', 'message' => 'User not found'];
+    }
+
+    public function getAllUsers()
+    {
+        return ['status' => 'success', 'data' => $this->readAll()];
+    }
+
     public function create($data, $file = null)
     {
         $profilePhoto = '';
@@ -72,7 +153,9 @@ class User
 
     public function readAll()
     {
-        $result = $this->conn->query("SELECT * FROM users");
+        $stmt = $this->conn->prepare("SELECT * FROM users ORDER BY id DESC");
+        $stmt->execute();
+        $result = $stmt->get_result();
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
@@ -141,15 +224,15 @@ class User
         $stmt->execute();
         return $stmt->get_result()->num_rows > 0;
     }
-    public function getByPhone($phone)
-{
-    $stmt = $this->conn->prepare("SELECT * FROM users WHERE phone = ?");
-    $stmt->bind_param("s", $phone);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_assoc();
-}
 
-    // ✅ For admin login
+    public function getByPhone($phone)
+    {
+        $stmt = $this->conn->prepare("SELECT * FROM users WHERE phone = ?");
+        $stmt->bind_param("s", $phone);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_assoc();
+    }
+
     public function getByEmail($email)
     {
         $stmt = $this->conn->prepare("SELECT * FROM admins WHERE email = ?");
@@ -158,7 +241,6 @@ class User
         return $stmt->get_result()->fetch_assoc();
     }
 
-    // ✅ NEW: for user check/update by email (for Excel)
     public function getUserByEmail($email)
     {
         $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ?");
@@ -167,4 +249,3 @@ class User
         return $stmt->get_result()->fetch_assoc();
     }
 }
-?>

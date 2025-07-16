@@ -3,95 +3,66 @@ require_once "config.php";
 require_once "User.php";
 
 header('Content-Type: application/json');
+session_start();
 
 $user = new User($conn);
-session_start();
-if (isset($_POST['logout'])) {
-    session_destroy();
-    echo json_encode(['status' => 'logged_out']);
+
+/** Helper: Send JSON response and stop */
+function respond($data, int $code = 200): void {
+    http_response_code($code);
+    echo json_encode($data);
     exit;
 }
 
-if (isset($_POST['login'])) {
-    $email = $_POST['email'];
-    $password = $_POST['password'];
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    !empty($_SERVER['CONTENT_TYPE']) &&
+    strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false
+) {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? null;
 
-    $loggedInUser = $user->getByEmail($email);
+    if (!$action) {
+        respond(['status' => 'error', 'message' => 'Missing action']);
+    }
 
-    if ($loggedInUser && password_verify($password, $loggedInUser['password'])) {
-        $_SESSION['logged_in'] = true;
-        $_SESSION['name'] = $loggedInUser['name']; // save name
-        echo json_encode(['status' => 'success', 'name' => $loggedInUser['name']]);
+    if ($action === 'login') {
+        respond($user->login($input['email'] ?? '', $input['password'] ?? ''));
+    } elseif ($action === 'logout') {
+        respond($user->logout());
+    } elseif ($action === 'read') {
+        respond($user->getAllUsers());
+    } elseif ($action === 'delete') {
+        respond($user->deleteUser($input['id'] ?? null));
+    } elseif ($action === 'get_user') {
+        respond($user->getUserById($input['id'] ?? null));
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid email or password']);
+        respond(['status' => 'error', 'message' => 'Invalid action']);
     }
-    exit;
 }
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['read'])) {
-    $users = $user->readAll();
-    echo json_encode(['data' => $users]);
-    exit;
-}
-// Handle AJAX Create
-if (isset($_POST['create'])) {
-    if ($user->emailExists($_POST['email'])) {
-        echo json_encode(['status' => 'error', 'field' => 'email', 'message' => 'Email already exists']);
-        exit;
-    }
-    if ($user->phoneExists($_POST['phone'])) {
-        echo json_encode(['status' => 'error', 'field' => 'phone', 'message' => 'Phone already exists']);
-        exit;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['data'])) {
+    $data = json_decode($_POST['data'], true);
+    $file = $_FILES['profile_photo'] ?? null;
+    $action = $data['action'] ?? null;
+
+    if (!$action) {
+        respond(['status' => 'error', 'message' => 'Missing form action']);
     }
 
-    $newId = $user->create($_POST, $_FILES['profile_photo']);
-    if ($newId) {
-        $createdUser = $user->get($newId);
-        echo json_encode([
-            'status' => 'success',
-            'user' => $createdUser
-        ]);
+    if ($action === 'create') {
+        respond($user->createUser($data, $file));
+    } elseif ($action === 'update') {
+        respond($user->updateUser($data, $file));
     } else {
-        echo json_encode(['status' => 'error']);
+        respond(['status' => 'error', 'message' => 'Invalid form action']);
     }
-    exit;
 }
 
-// Handle AJAX Update
-if (isset($_POST['update'])) {
-    $id = $_POST['id'];
-
-    if ($user->emailExists($_POST['email'], $id)) {
-        echo json_encode(['status' => 'error', 'field' => 'email', 'message' => 'Email already exists']);
-        exit;
-    }
-    if ($user->phoneExists($_POST['phone'], $id)) {
-        echo json_encode(['status' => 'error', 'field' => 'phone', 'message' => 'Phone already exists']);
-        exit;
-    }
-
-    $newPhoto = $user->update($id, $_POST, $_FILES['profile_photo'] ?? null);
-    if ($newPhoto !== false) {
-        $updatedUser = $user->get($id);
-        echo json_encode([
-            'status' => 'success',
-            'user' => $updatedUser,
-            'newPhoto' => $newPhoto
-        ]);
-    } else {
-        echo json_encode(['status' => 'error']);
-    }
-    exit;
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_user_id') {
+    $id = $_GET['id'] ?? null;
+    respond($user->getUserById($id));
 }
 
-// Handle AJAX Delete
-if (isset($_POST['delete'])) {
-    $result = $user->delete($_POST['id']);
-    echo json_encode(['status' => $result ? 'success' : 'error']);
-    exit;
-}
-
-// Get user data for editing
-if (isset($_GET['get_user_id'])) {
-    echo json_encode($user->get($_GET['get_user_id']));
-    exit;
-}
+// Default fallback
+respond(['status' => 'error', 'message' => 'Unsupported request method'], 405);

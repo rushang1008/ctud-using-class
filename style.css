@@ -9,7 +9,6 @@
     font-size: 0.9rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-
 .tooltip-success {
     background: #d1e7dd;
     color: #0f5132;
@@ -24,28 +23,38 @@
     position: relative;
     display: inline-block;
     cursor: pointer;
-}
-
-.photo-wrapper:hover .edit-icon {
-    opacity: 1;
-}
-
-.edit-icon {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    background: #000000aa;
-    color: #fff;
-    border-radius: 50%;
-    padding: 5px;
-    font-size: 14px;
-    opacity: 0;
-    transition: opacity 0.3s;
+    width: 100px;
+    height: 100px;
 }
 
 .photo-wrapper img {
     object-fit: cover;
     border: 2px solid #ddd;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+.edit-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.5);
+    font-size: 24px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: #6c757d;
+}
+
+.photo-wrapper:hover .edit-icon {
+    opacity: 1;
 }
 
 .photo-wrapper input[type="file"] {
@@ -53,29 +62,4 @@
 }
 .paginate_button .page-item {
     color:black !important;
-}
-/* Regular buttons */
-div.dataTables_wrapper div.dataTables_paginate ul.pagination .page-item .page-link {
-    background-color: white !important;
-    color: black !important;
-    border: 1px solid #dee2e6 !important;
-}
-
-/* Active page button */
-div.dataTables_wrapper div.dataTables_paginate ul.pagination .page-item.active .page-link {
-    background-color: black !important;
-    color: white !important;
-    border-color: black !important;
-}
-
-/* Hover effect */
-div.dataTables_wrapper div.dataTables_paginate ul.pagination .page-item .page-link:hover {
-    background-color: #f2f2f2 !important;
-    color: black !important;
-}
-/* Override Bootstrap focus outline on DataTables pagination */
-.dataTables_wrapper .dataTables_paginate .paginate_button:focus {
-    outline: none !important;
-    box-shadow: 0 0 0 0.25rem rgba(0, 0, 0, 0.25) !important; /* Black shadow */
-    border-color: black !important;
 }

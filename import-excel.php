@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once "config.php";
 require_once "User.php";
 require 'vendor/autoload.php';
@@ -9,10 +10,29 @@ header('Content-Type: application/json');
 $user = new User($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file']['tmp_name'])) {
-    $file = $_FILES['excel_file']['tmp_name'];
+    $fileTmpPath = $_FILES['excel_file']['tmp_name'];
+    $originalName = $_FILES['excel_file']['name'];
 
+    // Save uploaded Excel file
+    $uploadDir = __DIR__ . '/uploads/excels/';
+    $savedFileName = time() . '_' . basename($originalName);
+    $savedFilePath = $uploadDir . $savedFileName;
+
+    if (!move_uploaded_file($fileTmpPath, $savedFilePath)) {
+        responseError("Failed to save uploaded Excel file.");
+    }
+
+    // ✅ Log upload in DB
+    $uploadedBy = $_SESSION['name'] ?? 'Unknown';
+    $uploadedAt = date('Y-m-d H:i:s');
+
+    $stmt = $conn->prepare("INSERT INTO excel_uploads (filename, uploaded_by, uploaded_at) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $savedFileName, $uploadedBy, $uploadedAt);
+    $stmt->execute();
+
+    // ✅ Parse and process Excel
     try {
-        $spreadsheet = IOFactory::load($file);
+        $spreadsheet = IOFactory::load($savedFilePath);
         $sheet = $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray();
 
@@ -22,23 +42,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file']['tmp_na
 
         $expectedHeaders = ['Name', 'Email', 'Phone', 'Age', 'Salary', 'Address', 'Gender', 'Profile Photo'];
         $receivedHeaders = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
-        $expectedLower = array_map('strtolower', $expectedHeaders);
+        $expectedLower = array_map('strtolower', $expectedHeaders); 
 
         if ($receivedHeaders !== $expectedLower) {
             responseError("Invalid headers. Expected: " . implode(', ', $expectedHeaders));
         }
 
         array_shift($rows); // Remove header row
+
+        // ✅ Remove duplicates based on email or phone
+        $seen = [];
+        $uniqueRows = [];
+
+        foreach (array_reverse($rows) as $row) {
+            $row = array_pad(array_map(fn($val) => is_null($val) ? '' : trim((string)$val), $row), count($expectedHeaders), '');
+            [$name, $email, $phone] = $row;
+
+            $key = strtolower($email) . '|' . $phone;
+
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $uniqueRows[] = $row;
+            }
+        }
+
+        $rows = array_reverse($uniqueRows); // Keep original order
+        $duplicatesRemoved = count($sheet->toArray()) - 1 - count($rows); // subtract header
+
         $inserted = 0;
         $updated = 0;
 
         foreach ($rows as $i => $row) {
-            $rowNumber = $i + 2; // Excel row number for error reporting
-            $row = array_map(fn($val) => is_null($val) ? '' : trim((string)$val), $row);
+            $rowNumber = $i + 2;
             $row = array_pad($row, count($expectedHeaders), '');
-
-            if (count(array_filter($row)) === 0) continue;
-
             [$name, $email, $phone, $age, $salary, $address, $gender, $profile_photo] = $row;
 
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) responseError("Row $rowNumber: Invalid email format ($email)");
@@ -47,7 +83,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file']['tmp_na
             if (!is_numeric($salary)) responseError("Row $rowNumber: Salary must be a number");
             if (!in_array(strtolower($gender), ['male', 'female', 'other'])) responseError("Row $rowNumber: Invalid gender");
 
-            $existing = $user->getUserByEmail($email);
+            $userByEmail = $user->getUserByEmail($email);
+            $userByPhone = $user->getByPhone($phone);
+
+            if ($userByEmail && $userByPhone && $userByEmail['id'] === $userByPhone['id']) {
+                $existing = $userByEmail;
+            } elseif ($userByEmail) {
+                $existing = $userByEmail;
+            } elseif ($userByPhone) {
+                $existing = $userByPhone;
+            } elseif ($userByEmail && $userByPhone && $userByEmail['id'] !== $userByPhone['id']) {
+                responseError("Row $rowNumber: Email ($email) and Phone ($phone) belong to different users. Conflict found.");
+            } else {
+                $existing = null;
+            }
 
             if ($existing) {
                 $updatedSuccess = $user->update($existing['id'], [
@@ -65,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file']['tmp_na
                 if ($updatedSuccess !== false) {
                     $updated++;
                 } else {
-                    responseError("Row $rowNumber: Failed to update user with email $email");
+                    responseError("Row $rowNumber: Failed to update user");
                 }
             } else {
                 $createdId = $user->create([
@@ -90,7 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file']['tmp_na
         echo json_encode([
             'status' => 'success',
             'inserted' => $inserted,
-            'updated' => $updated
+            'updated' => $updated,
+            'duplicates_removed' => $duplicatesRemoved,
+            'file' => $savedFileName,
+            'uploaded_by' => $uploadedBy
         ]);
     } catch (Exception $e) {
         responseError("Invalid Excel file: " . $e->getMessage());
