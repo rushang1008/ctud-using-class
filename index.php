@@ -30,10 +30,12 @@ $users = $user->readAll();
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <input type="email" name="email" class="form-control" placeholder="Email" required>
+                        <input type="email" name="email" id="loginEmail" class="form-control" placeholder="Email"
+                            required>
                     </div>
                     <div class="mb-3">
-                        <input type="password" name="password" class="form-control" placeholder="Password" required>
+                        <input type="password" name="password" id="loginPassword" class="form-control"
+                            placeholder="Password" required>
                     </div>
                     <div id="loginError" class="text-danger small"></div>
                 </div>
@@ -75,10 +77,10 @@ $users = $user->readAll();
                     </button>
                     <a href="export-excel.php" class="btn btn-outline-success me-2">
                         <i class="bi bi-upload"></i> Export Excel
-                    </a>   
-                        <a href="export-pdf.php" target="_blank" class="btn btn-outline-danger me-2">
-                            <i class="bi bi-file-earmark-pdf-fill"></i> Export as PDF
-                        </a>
+                    </a>
+                    <a href="export-pdf.php" target="_blank" class="btn btn-outline-danger me-2">
+                        <i class="bi bi-file-earmark-pdf-fill"></i> Export as PDF
+                    </a>
 
                     <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#addModal">
                         + Add User
@@ -124,10 +126,13 @@ $users = $user->readAll();
             </div>
 
             <!-- Pagination info -->
-            <div class="d-flex justify-content-between align-items-center">
-                <div id="tableInfo" class="text-muted"></div>
-                <div id="paginationControls" class="btn-group"></div>
-            </div>
+            <div id="paginationControls" class="d-flex justify-content-end align-items-center mt-3">
+    <button id="prevPageBtn" class="btn btn-outline-secondary">Previous</button>
+    <div id="pageNumbers" class="btn-group"></div>
+    <button id="nextPageBtn" class="btn btn-outline-secondary">Next</button>
+</div>
+
+
         </div>
 
         <!-- Add Modal -->
@@ -301,10 +306,11 @@ $users = $user->readAll();
     </div>
 
     <!-- JS Libraries -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
+    <script src="js/jquery-3.7.1.min.js"></script>
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/jquery.validate.min.js"></script>
+    <script src="js/additional-methods.min.js"></script>
+
     <!-- <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script> -->
     <script src="index.js"></script>

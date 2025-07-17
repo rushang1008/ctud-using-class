@@ -1,4 +1,6 @@
 <?php
+require_once 'upload_helper.php';
+
 class User
 {
     private $conn;
@@ -94,7 +96,7 @@ class User
         $profilePhoto = '';
 
         if ($file && $file['name']) {
-            $uploaded = $this->uploadPhoto($file);
+            $uploaded = uploadPhoto($file);
             if ($uploaded === false) return false;
             $profilePhoto = $uploaded;
         } elseif (!empty($data['profile_photo'])) {
@@ -125,7 +127,7 @@ class User
         $old = $this->get($id);
 
         if ($photo && isset($photo['name']) && $photo['name']) {
-            $photoName = $this->uploadPhoto($photo, $old['profile_photo']);
+            $photoName = uploadPhoto($photo, $old['profile_photo']);
         } else {
             $photoName = $data['existing_photo'] ?? $old['profile_photo'];
         }
@@ -179,32 +181,6 @@ class User
         return $stmt->execute();
     }
 
-    public function uploadPhoto($photo, $oldPhoto = null)
-    {
-        $uploadDir = "uploads/";
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-        $mimeType = mime_content_type($photo['tmp_name']);
-
-        if (!in_array($mimeType, $allowedTypes)) return false;
-        if ($photo['size'] > 2 * 1024 * 1024) return false;
-
-        $fileName = uniqid() . "_" . basename($photo['name']);
-        $targetPath = $uploadDir . $fileName;
-
-        if (move_uploaded_file($photo['tmp_name'], $targetPath)) {
-            if ($oldPhoto && file_exists($uploadDir . $oldPhoto)) {
-                unlink($uploadDir . $oldPhoto);
-            }
-            return $fileName;
-        }
-
-        return false;
-    }
-
     public function emailExists($email, $excludeId = null)
     {
         $sql = "SELECT id FROM users WHERE email = ?";
@@ -248,4 +224,4 @@ class User
         $stmt->execute();
         return $stmt->get_result()->fetch_assoc();
     }
-}
+} 

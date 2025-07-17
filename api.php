@@ -14,6 +14,7 @@ function respond($data, int $code = 200): void {
     exit;
 }
 
+// JSON requests: application/json
 if (
     $_SERVER['REQUEST_METHOD'] === 'POST' &&
     !empty($_SERVER['CONTENT_TYPE']) &&
@@ -26,21 +27,23 @@ if (
         respond(['status' => 'error', 'message' => 'Missing action']);
     }
 
-    if ($action === 'login') {
-        respond($user->login($input['email'] ?? '', $input['password'] ?? ''));
-    } elseif ($action === 'logout') {
-        respond($user->logout());
-    } elseif ($action === 'read') {
-        respond($user->getAllUsers());
-    } elseif ($action === 'delete') {
-        respond($user->deleteUser($input['id'] ?? null));
-    } elseif ($action === 'get_user') {
-        respond($user->getUserById($input['id'] ?? null));
-    } else {
-        respond(['status' => 'error', 'message' => 'Invalid action']);
+    switch ($action) {
+        case 'login':
+            respond($user->login($input['email'] ?? '', $input['password'] ?? ''));
+        case 'logout':
+            respond($user->logout());
+        case 'read':
+            respond($user->getAllUsers());
+        case 'delete':
+            respond($user->deleteUser($input['id'] ?? null));
+        case 'get_user':
+            respond($user->getUserById($input['id'] ?? null));
+        default:
+            respond(['status' => 'error', 'message' => 'Invalid action']);
     }
 }
 
+// Multipart/form-data requests: used for file upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['data'])) {
     $data = json_decode($_POST['data'], true);
     $file = $_FILES['profile_photo'] ?? null;
@@ -50,19 +53,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['data'])) {
         respond(['status' => 'error', 'message' => 'Missing form action']);
     }
 
-    if ($action === 'create') {
-        respond($user->createUser($data, $file));
-    } elseif ($action === 'update') {
-        respond($user->updateUser($data, $file));
-    } else {
-        respond(['status' => 'error', 'message' => 'Invalid form action']);
+    switch ($action) {
+        case 'create':
+            respond($user->createUser($data, $file));
+        case 'update':
+            respond($user->updateUser($data, $file));
+        default:
+            respond(['status' => 'error', 'message' => 'Invalid form action']);
     }
 }
 
+// GET request for user by ID
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'get_user_id') {
     $id = $_GET['id'] ?? null;
     respond($user->getUserById($id));
 }
-
-// Default fallback
-respond(['status' => 'error', 'message' => 'Unsupported request method'], 405);

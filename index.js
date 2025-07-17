@@ -6,20 +6,19 @@ $(function () {
     let sortDirection = 'asc';
     let deleteId = null;
 
-    function api(action, data = {}) {
-        data.action = action;
-        return fetch('api.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(res => res.json());
-    }
-
     function fetchUsers() {
-        api('read').then(res => {
-            allUsers = res.data || [];
-            renderTable();
+        $.ajax({
+            url: 'api.php',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ action: 'read' }),
+            dataType: 'json',
+            success(res) {
+                allUsers = res.data || [];
+                renderTable();
+            }
         });
+        
     }
 
     function renderTable() {
@@ -29,29 +28,28 @@ $(function () {
             user.email.toLowerCase().includes(query) ||
             user.phone.toLowerCase().includes(query)
         );
-
+    
         filtered.sort((a, b) => {
             let valA = a[sortColumn] ?? '';
             let valB = b[sortColumn] ?? '';
-
+    
             if (typeof valA === 'string') valA = valA.toLowerCase();
             if (typeof valB === 'string') valB = valB.toLowerCase();
-
+    
             if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
             if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
-
-
+    
         const start = (currentPage - 1) * rowsPerPage;
         const paginated = filtered.slice(start, start + rowsPerPage);
-
+    
         let rows = '';
         paginated.forEach(user => {
             rows += `
             <tr data-id="${user.id}">
                 <td>${user.id}</td>
-                <td><img src="uploads/${user.profile_photo}" width="50" height ="50" class="rounded-circle"></td>
+                <td><img src="uploads/${user.profile_photo}" width="50" height="50" class="rounded-circle"></td>
                 <td>${user.name}</td>
                 <td>${user.email}</td>
                 <td>${user.phone}</td>
@@ -66,32 +64,51 @@ $(function () {
                 </td>
             </tr>`;
         });
-
+    
         $('#userTable tbody').html(rows);
         $('#tableInfo').text(`Showing ${start + 1} to ${Math.min(start + rowsPerPage, filtered.length)} of ${filtered.length} entries`);
-
-        let pagination = '';
+    
         const totalPages = Math.ceil(filtered.length / rowsPerPage);
-        pagination += `<button class="btn btn-outline-secondary me-1" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">Prev</button>`;
+    
+        // Handle Pagination Buttons
+        $('#prevPageBtn').prop('disabled', currentPage === 1).data('page', currentPage - 1);
+        $('#nextPageBtn').prop('disabled', currentPage === totalPages).data('page', currentPage + 1);
+    
+        // Render Page Numbers
+        let pageButtons = '';
         for (let i = 1; i <= totalPages; i++) {
-            pagination += `<button class="btn ${i === currentPage ? 'btn-primary' : 'btn-outline-secondary'} me-1" data-page="${i}">${i}</button>`;
+            pageButtons += `
+                <button class="btn ${i === currentPage ? 'btn-primary' : 'btn-outline-secondary'} page-btn" data-page="${i}">
+                    ${i}
+                </button>
+            `;
         }
-        pagination += `<button class="btn btn-outline-secondary" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Next</button>`;
-        $('#paginationControls').html(pagination);
-
+        $('#pageNumbers').html(pageButtons);
+    
+        // Update sorting icons
         $('#userTable thead th[data-sort]').each(function () {
             const $th = $(this);
             const col = $th.data('sort');
             const icon = $th.find('i');
-
+    
             if (col === sortColumn) {
                 icon.removeClass('bi-caret-down-fill bi-caret-up-fill')
                     .addClass(sortDirection === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill');
             } else {
-                icon.removeClass('bi-caret-up-fill').addClass('bi-caret-down-fill');
+                icon.removeClass('bi-caret-up-fill bi-caret-down-fill').addClass('bi-caret-down-fill');
             }
         });
     }
+    
+    // Place this OUTSIDE renderTable:
+    $(document).on('click', '#paginationControls .page-btn, #prevPageBtn, #nextPageBtn', function () {
+        const targetPage = parseInt($(this).data('page'));
+        if (!isNaN(targetPage)) {
+            currentPage = targetPage;
+            renderTable();
+        }
+    });
+    
 
     $('#paginationControls').on('click', 'button[data-page]', function () {
         changePage(parseInt($(this).data('page')));
@@ -143,21 +160,36 @@ $(function () {
 
     $('#loginForm').on('submit', function (e) {
         e.preventDefault();
-        $('#loginError').text('');
-        const email = $('input[name="email"]').val();
-        const password = $('input[name="password"]').val();
-
-        api('login', { email, password }).then(res => {
-            if (res.status === 'success') {
-                $('#loginModal').modal('hide');
-                $('#mainContent').fadeIn();
-                $('#navbarUsername').text(res.name || 'Admin');
-                fetchUsers();
-            } else {
-                $('#loginError').text(res.message || 'Invalid credentials');
+    
+        const email = $('#loginEmail').val().trim();
+        const password = $('#loginPassword').val().trim();
+    
+        if (!email || !password) {
+            $('#loginError').text('Both email and password are required.');
+            return;
+        }
+        $.ajax({
+            url: 'api.php',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ action: 'login', email, password }),
+            success: function (res) {
+                if (res.status === 'success') {
+                    $('#loginModal').modal('hide');
+                    $('#mainContent').fadeIn();
+                    $('#navbarUsername').text(res.name || 'Admin');
+                    fetchUsers(); // your custom function to fetch all users
+                } else {
+                    $('#loginError').text(res.message || 'Invalid credentials');
+                }
+            },
+            error: function () {
+                $('#loginError').text('Server error. Please try again.');
             }
         });
+        
     });
+    
 
     const formRules = {
         name: { required: true },
@@ -231,22 +263,48 @@ $(function () {
         }
     });
 
-    $('#userTable tbody').on('click', '.editBtn', function () {
-        const id = $(this).closest('tr').data('id');
-        api('get_user', { id }).then(u => {
-            $('#edit-id').val(u.id);
-            $('#existing_photo').val(u.profile_photo);
-            $('#edit-name').val(u.name);
-            $('#edit-phone').val(u.phone);
-            $('#edit-email').val(u.email);
-            $('#edit-age').val(u.age);
-            $('#edit-salary').val(u.salary);
-            $('#edit-address').val(u.address);
-            $(`#editForm input[name="gender"][value="${u.gender}"]`).prop('checked', true);
-            $('#editPreview').attr('src', 'uploads/' + u.profile_photo);
-            $('#editModal').modal('show');
-        });
+   $('#userTable tbody').on('click', '.editBtn', function () {
+    const id = $(this).closest('tr').data('id');
+    if (!id) {
+        showTooltip('Invalid user ID', 'error');
+        return;
+    }
+
+    $.ajax({
+        url: 'api.php',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ action: 'get_user', id }),
+        success: function (user) {
+            if (user && user.id) {
+                $('#edit-id').val(user.id);
+                $('#existing_photo').val(user.profile_photo || '');
+                $('#edit-name').val(user.name || '');
+                $('#edit-phone').val(user.phone || '');
+                $('#edit-email').val(user.email || '');
+                $('#edit-age').val(user.age || '');
+                $('#edit-salary').val(user.salary || '');
+                $('#edit-address').val(user.address || '');
+                $(`#editForm input[name="gender"][value="${user.gender}"]`).prop('checked', true);
+
+                const preview = $('#editPreview');
+                if (user.profile_photo) {
+                    preview.attr('src', 'uploads/' + user.profile_photo).show();
+                } else {
+                    preview.attr('src', '').hide();
+                }
+
+                $('#editModal').modal('show');
+            } else {
+                showTooltip('User not found.', 'error');
+            }
+        },
+        error: function () {
+            showTooltip('Error fetching user data.', 'error');
+        }
     });
+});
+    
 
     $('#editForm').validate({
         rules: formRules,
@@ -291,16 +349,32 @@ $(function () {
     });
 
     $('#confirmDeleteBtn').click(function () {
-        api('delete', { id: deleteId }).then(res => {
-            if (res.status === 'success') {
-                $('#deleteModal').modal('hide');
-                fetchUsers();
-                showTooltip('User deleted!', 'error');
-            } else {
-                showTooltip('Failed to delete user', 'error');
+        if (!deleteId) {
+            showTooltip('No user selected for deletion', 'error');
+            return;
+        }
+    
+        $.ajax({
+            url: 'api.php',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ action: 'delete', id: deleteId }),
+            success: function (res) {
+                if (res.status === 'success') {
+                    $('#deleteModal').modal('hide');
+                    fetchUsers(); // Refresh user list
+                    showTooltip('User deleted successfully!', 'success');
+                } else {
+                    showTooltip(res.message || 'Failed to delete user', 'error');
+                }
+            },
+            error: function () {
+                showTooltip('Server error occurred while deleting user', 'error');
             }
         });
+        
     });
+    
 
     $('#edit-photo').on('change', function (event) {
         $('#editPreview').attr('src', URL.createObjectURL(event.target.files[0]));
@@ -308,7 +382,17 @@ $(function () {
 
     $('#logoutBtn').click(function (e) {
         e.preventDefault();
-        api('logout').then(() => location.reload());
+        $.ajax({
+            url: 'api.php',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ action: 'logout' }),
+            dataType: 'json',
+            success() {
+                location.reload();
+            }
+        });
+        
     });
 
     $('#importForm').on('submit', function (e) {
