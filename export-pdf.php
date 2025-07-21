@@ -17,41 +17,17 @@ function resizeImageBase64($path, $width = 50, $height = 50) {
     return 'data:image/jpeg;base64,' . base64_encode($data);
 }
 
+// Fetch data
 $user = new User($conn);
 $response = $user->getAllUsers();
 $allUsers = $response['data'];
 
-// Build rows for the HTML table
-$rowsHtml = '';
-foreach ($allUsers as $u) {
-    $imagePath = "uploads/" . $u['profile_photo'];
-    if (file_exists($imagePath)) {
-        $imgTag = '<img src="' . resizeImageBase64($imagePath) . '" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">';
-    } else {
-        $imgTag = 'N/A';
-    }
-
-    $rowsHtml .= <<<HTML
-        <tr>
-            <td>{$u['id']}</td>
-            <td>{$imgTag}</td>
-            <td>{$u['name']}</td>
-            <td>{$u['email']}</td>
-            <td>{$u['phone']}</td>
-            <td>{$u['age']}</td>
-            <td>{$u['gender']}</td>
-            <td>{$u['address']}</td>
-            <td>{$u['salary']}</td>
-        </tr>
-    HTML;
-}
-
-// Load and capture the HTML template
+// Make $allUsers available to the template
 ob_start();
 include __DIR__ . "/templates/user-list-template.php";
 $html = ob_get_clean();
 
-// Generate the PDF
+// Create PDF
 $dompdf = new Dompdf();
 $dompdf->loadHtml($html);
 $dompdf->setPaper('A4');

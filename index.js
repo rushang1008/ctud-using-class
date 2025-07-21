@@ -6,20 +6,27 @@ $(function () {
     let sortDirection = 'asc';
     let deleteId = null;
 
-    function fetchUsers() {
-        $.ajax({
-            url: 'api.php',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ action: 'read' }),
-            dataType: 'json',
-            success(res) {
+   function fetchUsers() {
+    $.ajax({
+        url: 'api.php',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ action: 'read' }),
+        dataType: 'json',
+        success(res) {
+            if (res.status === 'success') {
                 allUsers = res.data || [];
                 renderTable();
+            } else {
+                console.error('Fetch failed:', res.message);
             }
-        });
-        
-    }
+        },
+        error(err) {
+            console.error('Server error:', err);
+        }
+    });
+}
+
 
     function renderTable() {
         const query = $('#searchInput').val().toLowerCase();
@@ -44,28 +51,27 @@ $(function () {
         const start = (currentPage - 1) * rowsPerPage;
         const paginated = filtered.slice(start, start + rowsPerPage);
     
-        let rows = '';
+        const tbody = $('#userTable tbody');
+        tbody.find('tr:not(#rowTemplate)').remove(); // Clear all except the template
+        
         paginated.forEach(user => {
-            rows += `
-            <tr data-id="${user.id}">
-                <td>${user.id}</td>
-                <td><img src="uploads/${user.profile_photo}" width="50" height="50" class="rounded-circle"></td>
-                <td>${user.name}</td>
-                <td>${user.email}</td>
-                <td>${user.phone}</td>
-                <td>${user.gender}</td>
-                <td>${user.age}</td>
-                <td>${user.address}</td>
-                <td>${user.created_at}</td>
-                <td>${parseFloat(user.salary).toFixed(2)}</td>
-                <td>
-                    <button class="btn btn-sm btn-warning editBtn">Edit</button>
-                    <button class="btn btn-sm btn-danger deleteBtn">Delete</button>
-                </td>
-            </tr>`;
+            const $row = $('#rowTemplate').clone().removeAttr('id').removeClass('d-none');
+        
+            $row.attr('data-id', user.id);
+            $row.find('.user-id').text(user.id);
+            $row.find('.user-photo').attr('src', `uploads/${user.profile_photo}?t=${Date.now()}`);
+            $row.find('.user-name').text(user.name);
+            $row.find('.user-email').text(user.email);
+            $row.find('.user-phone').text(user.phone);
+            $row.find('.user-gender').text(user.gender);
+            $row.find('.user-age').text(user.age);
+            $row.find('.user-address').text(user.address);
+            $row.find('.user-created').text(user.created_at);
+            $row.find('.user-salary').text(parseFloat(user.salary).toFixed(2));
+        
+            tbody.append($row);
         });
-    
-        $('#userTable tbody').html(rows);
+        
         $('#tableInfo').text(`Showing ${start + 1} to ${Math.min(start + rowsPerPage, filtered.length)} of ${filtered.length} entries`);
     
         const totalPages = Math.ceil(filtered.length / rowsPerPage);
@@ -311,16 +317,18 @@ $(function () {
         messages: formMessages,
         errorClass: 'text-danger small',
         submitHandler: function (form) {
-            const rawData = Object.fromEntries(new FormData(form));
+            const formDataObj = new FormData(form);
+            const rawData = Object.fromEntries(formDataObj.entries());
             rawData.action = 'update';
+        
             const formData = new FormData();
             formData.append('data', JSON.stringify(rawData));
-
+        
             const photo = $('#editForm [name="profile_photo"]')[0].files[0];
             if (photo) formData.append('profile_photo', photo);
-
+        
             $('#editForm label.text-danger.small').remove();
-
+        
             $.ajax({
                 url: 'api.php',
                 method: 'POST',
@@ -341,6 +349,7 @@ $(function () {
                 }
             });
         }
+        
     });
 
     $('#userTable tbody').on('click', '.deleteBtn', function () {
@@ -437,9 +446,6 @@ $(function () {
 
     $('#editModal').on('hidden.bs.modal', function () {
         $('#editForm').validate().resetForm();
-    });
-    $('.photo-wrapper').on('click', function () {
-        $('#edit-photo').trigger('click');
     });
 
 });
