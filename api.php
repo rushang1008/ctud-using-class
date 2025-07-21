@@ -9,7 +9,7 @@ $user = new User($conn);
 $data = [];
 $action = '';
 
-// Determine the input format (JSON or multipart/form-data)
+// Detect JSON or multipart/form-data input
 if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
     $json = json_decode(file_get_contents("php://input"), true);
     $data = $json ?? [];
@@ -24,82 +24,81 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
 
 switch ($action) {
     case 'read':
-        $allUsers = $user->readAll();
+        $search = $data['search'] ?? '';
+        $sortBy = $data['sortBy'] ?? 'id';
+        $sortDir = $data['sortDir'] ?? 'ASC';
+        $page = isset($data['page']) ? (int)$data['page'] : 1;
+        $limit = isset($data['limit']) ? (int)$data['limit'] : 10;
+    
+        $start = ($page - 1) * $limit;
+    
+        $result = $user->readAll($search, $sortBy, $sortDir, $start, $limit);
+    
+        $totalPages = ceil($result['recordsFiltered'] / $limit);
+        //  echo '<pre>';
+        // print_r($totalPages);die;
+    
         echo json_encode([
             'status' => 'success',
             'message' => 'Users fetched successfully',
-            'data' => $allUsers
+            'recordsTotal' => $result['recordsTotal'],
+            'recordsFiltered' => $result['recordsFiltered'],
+            'data' => $result['data'],
+            'page' => $page,
+            'totalPages' => $totalPages
         ]);
         break;
-        case 'get_user':
-            $id = $data['id'] ?? null;
-        
-            if (!$id) {
-                echo json_encode(['status' => 'error', 'message' => 'Missing user ID']);
-                exit;
-            }
-        
-            $userData = $user->getUserById($id);
-        
-            if (!$userData) {
-                echo json_encode(['status' => 'error', 'message' => 'User not found']);
-            } else {
-                echo json_encode($userData);  
-            }
-            break;
-        
+    
+    
 
-        case 'create':
-            $newId = $user->createuser($data, $_FILES['profile_photo'] ?? null);
-            if ($newId['status'] === 'error') {
-                echo json_encode($newId);
-                exit;
-            }
-        
-            $newUser = $newId['user']; 
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'User created successfully',
-                'data' => $newUser
-            ]);
-            break;
-        
+    case 'get_user':
+        $id = $data['id'] ?? null;
+        if (!$id) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing user ID']);
+            exit;
+        }
 
-        case 'update':
-            if (empty($_POST['data'])) {
-                echo json_encode(['status' => 'error', 'message' => 'Missing form data']);
-                exit;
-            }
-        
-            $postData = json_decode($_POST['data'], true);
-            $id = $postData['id'] ?? null;
-        
-            if (!$id) {
-                echo json_encode(['status' => 'error', 'message' => 'Missing user ID']);
-                exit;
-            }
-        
-            $existing_photo = $postData['existing_photo'] ?? null;
-            unset($postData['id'], $postData['existing_photo'], $postData['action']);
-        
-            $file = $_FILES['profile_photo'] ?? null;
-        
-            $result = $user->updateuser($id, $postData, $file, $existing_photo);
-            echo json_encode($result);
-            break;
-        
-        
+        $userData = $user->getUserById($id);
+        echo json_encode($userData ?: ['status' => 'error', 'message' => 'User not found']);
+        break;
+
+    case 'create':
+        $newId = $user->createuser($data, $_FILES['profile_photo'] ?? null);
+        if ($newId['status'] === 'error') {
+            echo json_encode($newId);
+            exit;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'User created successfully',
+            'data' => $newId['user']
+        ]);
+        break;
+
+    case 'update':
+        $id = $data['id'] ?? null;
+
+        if (!$id) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing user ID']);
+            exit;
+        }
+
+        $existing_photo = $data['existing_photo'] ?? null;
+        unset($data['id'], $data['existing_photo'], $data['action']);
+
+        $file = $_FILES['profile_photo'] ?? null;
+
+        $result = $user->updateuser($id, $data, $file, $existing_photo);
+        echo json_encode($result);
+        break;
+
     case 'delete':
         $user->deleteUser($data['id']);
         echo json_encode([
             'status' => 'success',
             'message' => 'User deleted successfully'
         ]);
-        break;
-
-    case 'get_user':
-        $userData = $user->getUserById($data['id']);
-        echo json_encode($userData);
         break;
 
     case 'login':
@@ -133,7 +132,7 @@ switch ($action) {
     default:
         echo json_encode([
             'status' => 'error',
-            'message' => 'Invalid action'
+            'message' => 'Invalid action: ' . htmlspecialchars($action)
         ]);
         break;
 }

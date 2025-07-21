@@ -79,16 +79,16 @@ $users = $user->readAll();
             <table id="userTable" class="table table-bordered table-striped">
                 <thead class="table-dark">
                     <tr>
-                        <th data-sort="id">ID <i class="bi bi-caret-down-fill"></i></th>
+                        <th class="sort" data-sort="id">ID </th>
                         <th>Photo</th>
-                        <th data-sort="name">Name <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="email">Email <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="phone">Phone <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="gender">Gender <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="age">Age <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="address">Address <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="created_at">Created <i class="bi bi-caret-down-fill"></i></th>
-                        <th data-sort="salary">Salary <i class="bi bi-caret-down-fill"></i></th>
+                        <th class="sort" data-sort="name">Name </th>
+                        <th class="sort" data-sort="email">Email </th>
+                        <th class="sort" data-sort="phone">Phone </th>
+                        <th class="sort" data-sort="gender">Gender </th>
+                        <th class="sort" data-sort="age">Age </th>
+                        <th class="sort" data-sort="address">Address </th>
+                        <th class="sort" data-sort="created_at">Created </th>
+                        <th class="sort" data-sort="salary">Salary </th>
                         <th>Actions</th>
                     </tr>
                 </thead>

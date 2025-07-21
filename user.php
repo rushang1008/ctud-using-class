@@ -189,14 +189,48 @@ class User
         return $user;
     }
     
-    public function readAll()
+    public function readAll($search = '', $sortBy = 'id', $sortDir = 'ASC', $start = 0)
     {
-        $stmt = $this->conn->prepare("SELECT * FROM users");
+        $searchTerm = "%{$search}%";
+    
+        // Whitelist columns
+        $allowedSortColumns = ['id', 'name', 'email', 'phone', 'salary', 'age'];
+        if (!in_array($sortBy, $allowedSortColumns)) {
+            $sortBy = 'id';
+        }
+    
+        $sortDir = strtoupper($sortDir) === 'DESC' ? 'DESC' : 'ASC';
+    
+        // Fetch data
+        $stmt = $this->conn->prepare("
+            SELECT * FROM users 
+            WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?
+            ORDER BY $sortBy $sortDir 
+        ");
+        $stmt->bind_param("sss", $searchTerm, $searchTerm, $searchTerm);
         $stmt->execute();
-        $res = $stmt->get_result();
-        return $res->fetch_all(MYSQLI_ASSOC);
+        $result = $stmt->get_result();
+        $users = $result->fetch_all(MYSQLI_ASSOC);
+    
+        // Total count with same filter
+        $countStmt = $this->conn->prepare("
+            SELECT COUNT(*) AS total FROM users 
+            WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?
+        ");
+        $countStmt->bind_param("sss", $searchTerm, $searchTerm, $searchTerm);
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $total = $countResult->fetch_assoc()['total'];
+       
+    
+        return [
+            'recordsTotal' => $total,
+            'recordsFiltered' => $total,
+            'data' => $users
+        ];
     }
-
+    
+    
     public function emailExists($email, $excludeId = null)
     {
         $sql = "SELECT id FROM users WHERE email = ?";
